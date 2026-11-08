@@ -19,4 +19,4 @@ netty = ["netty-codec", "netty-http"]
 
 [plugins]
 spotless = { id = "com.diffplug.spotless", version = "6.19.0" }
-voldeloom = { id = "agency.highlysuspect.voldeloom", version = "2.4-SNAPSHOT" }
+voldeloom = { id = "agency.highlysuspect.voldeloom", version = "2.5-SNAPSHOT" }

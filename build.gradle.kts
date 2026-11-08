@@ -79,7 +79,7 @@ dependencies {
     compileOnly("com.google.code.findbugs:jsr305:3.0.2")
     compileOnly("org.jetbrains:annotations:24.0.1")
     compileOnly(libs.jspecify)
-    modImplementation("maven.modrinth:computercraft:1.50")
+    modImplementation("maven.modrinth:computercraft:1.50@zip")
     "shade"("cc.tweaked:cobalt")
     "shade"(libs.bundles.netty)
 
