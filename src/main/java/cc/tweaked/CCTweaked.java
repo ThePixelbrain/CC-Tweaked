@@ -5,7 +5,9 @@
 package cc.tweaked;
 
 import cpw.mods.fml.common.Mod;
+import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 import cpw.mods.fml.relauncher.FMLRelaunchLog;
+import dan200.computercraft.shared.config.Config;
 
 import java.io.File;
 import java.net.MalformedURLException;
@@ -23,6 +25,11 @@ public class CCTweaked {
 
     static {
         LOG.setParent(FMLRelaunchLog.log.getLogger());
+    }
+
+    @Mod.PreInit
+    public void preInit(FMLPreInitializationEvent event) {
+        Config.load(event.getSuggestedConfigurationFile());
     }
 
     public static File getLoadingJar() {

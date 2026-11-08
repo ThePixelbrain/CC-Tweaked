@@ -4,7 +4,9 @@
 
 package dan200.computercraft.core.apis.http;
 
+import dan200.computercraft.core.CoreConfig;
 import dan200.computercraft.core.apis.http.options.Action;
+import dan200.computercraft.core.apis.http.options.AddressRule;
 import dan200.computercraft.core.apis.http.options.Options;
 import dan200.computercraft.core.util.ThreadUtils;
 import io.netty.buffer.ByteBuf;
@@ -25,6 +27,7 @@ import org.jspecify.annotations.Nullable;
 
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLHandshakeException;
+import java.net.Inet6Address;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -110,6 +113,10 @@ public final class NetworkUtils {
         if (port < 0) port = ssl ? 443 : 80;
         var socketAddress = new InetSocketAddress(host, port);
         if (socketAddress.isUnresolved()) throw new HTTPRequestException("Unknown host");
+        if (socketAddress.getAddress() instanceof Inet6Address inet6 && (inet6.getScopedInterface() != null || inet6.getScopeId() != 0)) {
+            throw new HTTPRequestException("Scoped address not permitted");
+        }
+
         return socketAddress;
     }
 
@@ -122,7 +129,9 @@ public final class NetworkUtils {
      * @throws HTTPRequestException If the host is not permitted
      */
     public static Options getOptions(String host, InetSocketAddress address) throws HTTPRequestException {
-        return new Options(Action.ALLOW, 4 * 1024 * 1024, 16 * 1024 * 1024, 128 * 1024, false);
+        var options = AddressRule.apply(CoreConfig.httpRules, host, address);
+        if (options.action() == Action.DENY) throw new HTTPRequestException("Domain not permitted");
+        return options;
     }
 
     /**
