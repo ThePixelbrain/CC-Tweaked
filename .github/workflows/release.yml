@@ -1,0 +1,59 @@
+name: Release
+
+on:
+  push:
+    tags:
+      # The mod version, e.g. 1.115.2 or 1.115.2-ssrf-fix. The MC version is added to the jar name by Gradle.
+      - '[0-9]+.[0-9]+.[0-9]+*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and release
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Clone repository
+      uses: actions/checkout@v6
+      with:
+        submodules: true
+
+    # Java 17 compiles the mod, Java 8 is used to instrument and run it. The last version listed becomes the default.
+    - name: Set up Java
+      uses: actions/setup-java@v5
+      with:
+        java-version: |
+          8
+          17
+        distribution: 'temurin'
+
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v6
+      with:
+        cache-read-only: true
+
+    - name: Build
+      run: >-
+        ./gradlew assemble
+        -PmodVersion=${{ github.ref_name }}
+        -Porg.gradle.java.installations.fromEnv=JAVA_HOME_8_X64,JAVA_HOME_17_X64
+
+    - name: Create release
+      env:
+        GH_TOKEN: ${{ github.token }}
+        TAG: ${{ github.ref_name }}
+      run: |
+        # Replace an existing release for this tag, so the workflow can be re-run. Keep the "latest" marker where it
+        # is when rebuilding an older release.
+        latest_flag=""
+        if gh release view "$TAG" > /dev/null 2>&1; then
+          latest_tag="$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name 2> /dev/null || true)"
+          if [[ -n "$latest_tag" && "$latest_tag" != "$TAG" ]]; then
+            latest_flag="--latest=false"
+          fi
+          gh release delete --yes "$TAG"
+        fi
+
+        gh release create "$TAG" build/libs/*.jar --title "$TAG" --generate-notes --verify-tag $latest_flag

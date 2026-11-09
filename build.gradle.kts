@@ -13,8 +13,45 @@ plugins {
     id("com.gradleup.shadow") version "8.3.5"
 }
 
-val modVersion: String by extra
 val mcVersion: String by extra
+
+fun git(vararg args: String): String? = try {
+    val output = providers.exec {
+        commandLine("git", *args)
+        isIgnoreExitValue = true
+    }
+    if (output.result.get().exitValue == 0) output.standardOutput.asText.get().trim() else null
+} catch (e: Exception) {
+    null
+}
+
+/**
+ * Derive a version from git, following GTNH's scheme. A clean checkout of a release tag (e.g. 1.115.2) uses the tag
+ * as-is. Otherwise, the branch, commits since the tag and commit hash are appended, e.g.
+ * 1.115.2-mc-1-4-7.3+06f06abd8-dirty. Only bare x.y.z tags count, so upstream's v1.4.7-x.y.z tags are ignored.
+ */
+fun gitVersion(): String {
+    val hash = git("rev-parse", "--short", "HEAD") ?: return "0.0.0-unknown"
+    val dirty = !git("status", "--porcelain", "--untracked-files=no").isNullOrEmpty()
+
+    val describe = git("describe", "--tags", "--long", "--match", "[0-9]*.[0-9]*.[0-9]*")
+        ?.let { Regex("""^(.+)-(\d+)-g[0-9a-f]+$""").find(it) }
+    val tag = describe?.groupValues?.get(1) ?: "0.0.0"
+    val distance = describe?.groupValues?.get(2)?.toInt() ?: git("rev-list", "--count", "HEAD")?.toInt() ?: 0
+
+    val branch = git("rev-parse", "--abbrev-ref", "HEAD").takeUnless { it == null || it == "HEAD" } ?: "detached"
+    val branchName = branch.replace(Regex("[^a-zA-Z0-9-]+"), "-")
+    val dirtySuffix = if (dirty) "-dirty" else ""
+
+    return when {
+        distance > 0 -> "$tag-$branchName.$distance+$hash$dirtySuffix"
+        dirty -> "$tag-$branchName+$hash-dirty"
+        else -> tag
+    }
+}
+
+// CI passes the release tag as -PmodVersion (or ORG_GRADLE_PROJECT_modVersion); otherwise the version comes from git.
+val modVersion = providers.gradleProperty("modVersion").getOrElse(gitVersion())
 
 group = "cc.tweaked"
 version = modVersion
